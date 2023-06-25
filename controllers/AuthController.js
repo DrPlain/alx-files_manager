@@ -49,7 +49,7 @@ export async function getDisconect(req, res) {
   }
 
   await redisClient.del(`auth_${token}`);
-  return res.sendStatus(204);
+  return res.status(204).send();
 }
 
 export async function getMe(req, res) {
