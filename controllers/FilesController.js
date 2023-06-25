@@ -10,6 +10,25 @@ const writeFileAsync = promisify(writeFile);
 const mkdirAsync = promisify(mkdir);
 
 export default class FilesController {
+  static async getUserByToken(req, res) {
+    const token = req.headers['x-token'];
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Retrieve user based on token
+    const userId = await redisClient.get(`auth_${token}`);
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await dbClient.usersCollection.findOne({ _id: ObjectId(userId) });
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    return user;
+  }
+
   static async postUpload(req, res) {
     const token = req.headers['x-token'];
     if (!token) {
@@ -115,5 +134,42 @@ export default class FilesController {
       isPublic: isPublic || false,
       parentId: parentId || 0,
     });
+  }
+
+  static async getShow(req, res) {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    // Retrieve user by token
+    const user = await FilesController.getUserByToken(req, res);
+
+    // Retrieve files attached to userId
+    const files = await dbClient.filesCollection.find({
+      userId: user._id,
+      _id: ObjectId(id),
+    }).toArray();
+    if (!files || files.length === 0) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    return res.status(200).json(files);
+  }
+
+  static async getIndex(req, res) {
+    const user = await FilesController.getUserByToken(req, res);
+    const { parentId, page = 0 } = req.query;
+    const pageSize = 20;
+    const searchParam = {
+      userId: user._id,
+      parentId: 0,
+    };
+    if (parentId) {
+      searchParam.parentId = ObjectId(parentId);
+    }
+    const files = await dbClient.filesCollection.find(searchParam)
+      .skip(page * pageSize)
+      .limit(pageSize)
+      .toArray();
+    return res.status(200).json(files);
   }
 }
