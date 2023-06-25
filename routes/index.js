@@ -1,17 +1,17 @@
 import express from 'express';
-import { getStatus, getStats } from '../controllers/AppController';
-import postNew from '../controllers/UsersController';
-import { getConnect, getDisconect, getMe } from '../controllers/AuthController';
-import postUpload from '../controllers/FilesController';
+import AppController from '../controllers/AppController';
+import UsersController from '../controllers/UsersController';
+import AuthController from '../controllers/AuthController';
+import FilesController from '../controllers/FilesController';
 
 const router = express.Router();
 
-router.get('/status', getStatus);
-router.get('/stats', getStats);
-router.post('/users', postNew);
-router.get('/connect', getConnect);
-router.get('/disconnect', getDisconect);
-router.get('/users/me', getMe);
-router.post('/files', postUpload);
+router.get('/status', AppController.getStatus);
+router.get('/stats', AppController.getStats);
+router.post('/users', UsersController.postNew);
+router.get('/connect', AuthController.getConnect);
+router.get('/disconnect', AuthController.getDisconect);
+router.get('/users/me', AuthController.getMe);
+router.post('/files', FilesController.postUpload);
 
 export default router;
