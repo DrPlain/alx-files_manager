@@ -156,7 +156,7 @@ export default class FilesController {
     // Format keys from _id to id
     const { _id, ...rest } = files;
     const editedFiles = { id: _id, ...rest };
-    console.log(editedFiles);
+
     return res.status(200).json(editedFiles);
   }
 
@@ -181,7 +181,32 @@ export default class FilesController {
       const { _id, ...rest } = obj;
       return { id: _id, ...rest };
     });
-    console.log(editedFiles);
     return res.status(200).json(editedFiles);
+  }
+
+  static async publish(req, res, makePublic) {
+    const user = await FilesController.getUserByToken(req, res);
+    const { id } = req.params;
+    const filter = { _id: ObjectId(id), userId: user._id };
+    const file = await dbClient.filesCollection.findOne(filter);
+    if (!file) {
+      res.status(404).json({ error: 'Not found' });
+    }
+    const update = { $set: { isPublic: makePublic } };
+    await dbClient.filesCollection.update(filter, update);
+    const modifiedFile = await dbClient.filesCollection.findOne(filter);
+    // Format keys from _id to id
+    const { _id, ...rest } = modifiedFile;
+    const editedModifiedFile = { id: _id, ...rest };
+
+    return res.status(200).json(editedModifiedFile);
+  }
+
+  static async putPublish(req, res) {
+    FilesController.publish(req, res, true);
+  }
+
+  static async putUnpublish(req, res) {
+    FilesController.publish(req, res, false);
   }
 }
