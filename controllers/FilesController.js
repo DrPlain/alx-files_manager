@@ -145,14 +145,19 @@ export default class FilesController {
     const user = await FilesController.getUserByToken(req, res);
 
     // Retrieve files attached to userId
-    const files = await dbClient.filesCollection.find({
+    const files = await dbClient.filesCollection.findOne({
       userId: user._id,
       _id: ObjectId(id),
-    }).toArray();
+    });
     if (!files || files.length === 0) {
       return res.status(404).json({ error: 'Not found' });
     }
-    return res.status(200).json(files);
+
+    // Format keys from _id to id
+    const { _id, ...rest } = files;
+    const editedFiles = { id: _id, ...rest };
+    console.log(editedFiles);
+    return res.status(200).json(editedFiles);
   }
 
   static async getIndex(req, res) {
@@ -170,6 +175,13 @@ export default class FilesController {
       .skip(page * pageSize)
       .limit(pageSize)
       .toArray();
-    return res.status(200).json(files);
+
+    // Format keys from _id to id
+    const editedFiles = files.map((obj) => {
+      const { _id, ...rest } = obj;
+      return { id: _id, ...rest };
+    });
+    console.log(editedFiles);
+    return res.status(200).json(editedFiles);
   }
 }
