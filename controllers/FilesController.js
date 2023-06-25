@@ -69,8 +69,15 @@ export default class FilesController {
     };
 
     if (type === 'folder') {
-      await dbClient.filesCollection.insertOne(newFolder);
-      return res.status(201).json(newFolder);
+      const result = await dbClient.filesCollection.insertOne(newFolder);
+      return res.status(201).json({
+        id: result.insertedId,
+        userId,
+        name,
+        type,
+        isPublic: isPublic || false,
+        parentId: parentId || 0,
+      });
     }
 
     const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
