@@ -63,9 +63,9 @@ export default class FilesController {
     const newFolder = {
       name,
       type,
-      parentId: parentId || 0,
+      parentId: ObjectId(parentId) || 0,
       isPublic: isPublic || false,
-      userId,
+      userId: ObjectId(userId),
     };
 
     if (type === 'folder') {
@@ -97,11 +97,11 @@ export default class FilesController {
     }
 
     const newFile = {
-      userId,
+      userId: ObjectId(userId),
       name,
       type,
       isPublic: isPublic || false,
-      parentId: parentId || 0,
+      parentId: ObjectId(parentId) || 0,
       localPath: filePath,
     };
 
