@@ -26,6 +26,6 @@ export default async function postNew(req, res) {
     .update(password)
     .digest('hex');
 
-  const newUser = await dbClient.usersCollection.insertOne({ email, hashedPassword });
+  const newUser = await dbClient.usersCollection.insertOne({ email, password: hashedPassword });
   return res.status(201).json({ id: newUser.insertedId, email });
 }
