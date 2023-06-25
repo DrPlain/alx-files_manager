@@ -106,8 +106,6 @@ export default class FilesController {
       localPath: filePath,
     };
     if (parentId) newFile.parentId = ObjectId(parentId);
-    console.log(parentId);
-    console.log(newFolder);
     const result = await dbClient.filesCollection.insertOne(newFile);
     const fileId = result.insertedId;
     return res.status(201).json({
