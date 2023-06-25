@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import sha1 from 'sha1';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
 import dbClient from '../utils/db';
@@ -15,10 +15,7 @@ export async function getConnect(req, res) {
   const [email, password] = decodedCredentials.split(':');
 
   // Hash the password using SHA1
-  const hashedPassword = crypto
-    .createHash('sha1')
-    .update(password)
-    .digest('hex');
+  const hashedPassword = sha1(password);
 
   let user = null;
   try {
@@ -33,13 +30,13 @@ export async function getConnect(req, res) {
 
   // Create userId token using uuidv4
   const token = uuidv4();
-  const key = `auth_${token}`;
+  const redisKey = `auth_${token}`;
   const userId = `${user._id}`;
 
   // Store the userId in redis
-  await redisClient.set(key, userId, 86400);
+  await redisClient.set(redisKey, userId, 86400);
 
-  return res.status(200).json({ token });
+  return res.status(200).send({ token });
 }
 
 export async function getDisconect(req, res) {
