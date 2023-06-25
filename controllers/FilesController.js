@@ -63,10 +63,11 @@ export default class FilesController {
     const newFolder = {
       name,
       type,
-      parentId: ObjectId(parentId) || 0,
+      parentId: parentId || 0,
       isPublic: isPublic || false,
       userId: ObjectId(userId),
     };
+    if (parentId) newFolder.parentId = ObjectId(parentId);
 
     if (type === 'folder') {
       const result = await dbClient.filesCollection.insertOne(newFolder);
@@ -101,10 +102,12 @@ export default class FilesController {
       name,
       type,
       isPublic: isPublic || false,
-      parentId: ObjectId(parentId) || 0,
+      parentId: parentId || 0,
       localPath: filePath,
     };
-
+    if (parentId) newFile.parentId = ObjectId(parentId);
+    console.log(parentId);
+    console.log(newFolder);
     const result = await dbClient.filesCollection.insertOne(newFile);
     const fileId = result.insertedId;
     return res.status(201).json({
