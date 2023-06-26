@@ -1,13 +1,14 @@
 import { ObjectId } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
-import { writeFile, mkdir, existsSync } from 'fs';
+import fs from 'fs';
+import mine from 'mime-types';
 import { promisify } from 'util';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
-const writeFileAsync = promisify(writeFile);
-const mkdirAsync = promisify(mkdir);
+const writeFileAsync = promisify(fs.writeFile);
+const mkdirAsync = promisify(fs.mkdir);
 
 export default class FilesController {
   static async getUserByToken(req, res) {
@@ -106,7 +107,7 @@ export default class FilesController {
     const filePath = path.join(FOLDER_PATH, fileName);
 
     try {
-      if (!existsSync(FOLDER_PATH)) {
+      if (!fs.existsSync(FOLDER_PATH)) {
         // The recursive option ensures that the directory and
       //   necessary parent directories are created recursively
         await mkdirAsync(FOLDER_PATH, { recursive: true });
@@ -186,19 +187,26 @@ export default class FilesController {
 
   static async publish(req, res, makePublic) {
     const user = await FilesController.getUserByToken(req, res);
+
+    if (!('_id' in user && 'email' in user)) {
+      return;
+    }
     const { id } = req.params;
     const filter = { _id: ObjectId(id), userId: user._id };
     const file = await dbClient.filesCollection.findOne(filter);
     if (!file) {
-      res.status(404).json({ error: 'Not found' });
+      // eslint-disable-next-line consistent-return
+      return res.status(404).json({ error: 'Not found' });
     }
     const update = { $set: { isPublic: makePublic } };
-    await dbClient.filesCollection.update(filter, update);
+    await dbClient.filesCollection.updateOne(filter, update);
     const modifiedFile = await dbClient.filesCollection.findOne(filter);
     // Format keys from _id to id
     const { _id, ...rest } = modifiedFile;
     const editedModifiedFile = { id: _id, ...rest };
+    delete editedModifiedFile.localPath;
 
+    // eslint-disable-next-line consistent-return
     return res.status(200).json(editedModifiedFile);
   }
 
@@ -208,5 +216,58 @@ export default class FilesController {
 
   static async putUnpublish(req, res) {
     FilesController.publish(req, res, false);
+  }
+
+  static async getFile(req, res) {
+    // Check if there is a document in db linked to the id
+    const { id } = req.params;
+    const file = await dbClient.filesCollection.findOne({ _id: ObjectId(id) });
+    if (!file) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Check if file or folder is public
+    if (!file.isPublic) {
+      const token = req.headers['x-token'];
+      if (!token) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+
+      // Retrieve user based on token
+      const userId = await redisClient.get(`auth_${token}`);
+      if (!userId) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+
+      const user = await dbClient.usersCollection.findOne({ _id: ObjectId(userId) });
+      if (!user) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+
+      // Check if user is owner of the file
+      if (file.userId.toString() !== user._id.toString()) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+    }
+
+    // File is either public or owned by user at this stage
+    if (file.type === 'folder') {
+      return res.status(404).json({ error: "A folder doesn't have content" });
+    }
+
+    // Check if file path exists
+    try {
+      await fs.promises.access(file.localPath, fs.constants.F_OK);
+    } catch (error) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Get the mime type of the file
+    const mimeType = mine.lookup(file.localPath);
+
+    // Set the header with the correct mine type
+    res.setHeader('Content-type', mimeType);
+    const output = await fs.promises.readFile(file.localPath);
+    return res.status(200).send(output);
   }
 }
