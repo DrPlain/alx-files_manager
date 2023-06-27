@@ -6,14 +6,12 @@ import fs from 'fs';
 import dbClient from './utils/db';
 
 const fileQueue = new Queue('generateImageThumbnail');
+const userQueue = new Queue('sendEmail');
 
 fileQueue.process(async (job) => {
-  if (!job.data.fileId) {
-    throw new Error('Missing fileId');
-  }
-  if (!job.data.userId) {
-    throw new Error('Missing userId');
-  }
+  if (!job.data.fileId) throw new Error('Missing fileId');
+
+  if (!job.data.userId) throw new Error('Missing userId');
 
   const { fileId, userId } = job.data;
 
@@ -25,9 +23,7 @@ fileQueue.process(async (job) => {
     throw new Error('File not found');
   }
 
-  if (!file) {
-    throw new Error('File not found');
-  }
+  if (!file) throw new Error('File not found');
 
   const thumbnailSizes = [500, 250, 100];
   for (const size of thumbnailSizes) {
@@ -40,4 +36,20 @@ fileQueue.process(async (job) => {
       console.error(error.message);
     }
   }
+});
+
+userQueue.process(async (job) => {
+  const { userId } = job.data;
+
+  if (!userId) throw new Error('Missing userId');
+
+  let user = null;
+  try {
+    const query = { _id: ObjectId(userId) };
+    user = await dbClient.usersCollection.findOne(query);
+  } catch (error) {
+    throw new Error('User not found');
+  }
+  if (!user) throw new Error('User not found');
+  console.log(`Welcome ${user.email}`);
 });

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import Queue from 'bull/';
 import dbClient from '../utils/db';
 
 export default class UsersController {
@@ -28,6 +29,8 @@ export default class UsersController {
       .digest('hex');
 
     const newUser = await dbClient.usersCollection.insertOne({ email, password: hashedPassword });
+    const userQueue = new Queue('sendEmail');
+    userQueue.add({ userId: newUser.insertedId });
     return res.status(201).json({ id: newUser.insertedId, email });
   }
 }
