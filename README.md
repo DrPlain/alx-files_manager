@@ -24,4 +24,5 @@ The objective is to build a simple API to upload and view files:
 - PUT /files/:id/unpublish
 - GET /files/:id/data
 
-## AUTHOR: Gideon Obiasor || gideonobiasor@gmail.com
+## AUTHOR
+Gideon Obiasor || gideonobiasor@gmail.com
