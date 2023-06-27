@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import mine from 'mime-types';
 import { promisify } from 'util';
+import Queue from 'bull';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
@@ -32,6 +33,7 @@ export default class FilesController {
 
   static async postUpload(req, res) {
     const token = req.headers['x-token'];
+
     if (!token) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -128,6 +130,13 @@ export default class FilesController {
     if (parentId) newFile.parentId = ObjectId(parentId);
     const result = await dbClient.filesCollection.insertOne(newFile);
     const fileId = result.insertedId;
+
+    // Add a job to the fileQue if type === image
+    if (type === 'image') {
+      const fileQueue = new Queue('generateImageThumbnail');
+      // Add a job to queue
+      await fileQueue.add({ userId, fileId });
+    }
     return res.status(201).json({
       id: fileId,
       userId,
@@ -219,8 +228,11 @@ export default class FilesController {
   }
 
   static async getFile(req, res) {
-    // Check if there is a document in db linked to the id
+    // Get request parameters
     const { id } = req.params;
+    const { size } = req.query;
+
+    // Check if there is a document in db linked to the id
     const file = await dbClient.filesCollection.findOne({ _id: ObjectId(id) });
     if (!file) {
       return res.status(404).json({ error: 'Not found' });
@@ -263,10 +275,22 @@ export default class FilesController {
     }
 
     // Get the mime type of the file
-    const mimeType = mine.lookup(file.localPath);
+    const mimeType = mine.lookup(file.name);
 
     // Set the header with the correct mine type
     res.setHeader('Content-type', mimeType);
+    if (file.type === 'image' && size) {
+      if ([500, 250, 100].includes(parseInt(size, 10))) {
+        let output = null;
+        output = await fs.promises.readFile(`${file.localPath}_${parseInt(size, 10)}`);
+        if (!output) {
+          return res.status(404).json({ error: 'Not found' });
+        }
+        return res.status(200).send(output);
+      }
+      return res.status(404).json({ error: 'Not found' });
+    }
+
     const output = await fs.promises.readFile(file.localPath);
     return res.status(200).send(output);
   }
